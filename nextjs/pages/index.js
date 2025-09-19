@@ -1,19 +1,13 @@
-import Head from "next/head";
-import Image from "next/image";
-import { Inter } from "next/font/google";
-import Grid from "@mui/material/Grid2";
-import { Box, Typography, Button, TextField } from "@mui/material"; // Use by LoginForm
-import useBearStore from "@/store/useBearStore";
+import dynamic from "next/dynamic";
 
-function Home() {
+const MapComponent = dynamic(() => import("../components/RealMapComponent"), {
+  ssr: false,
+});
+
+export default function Home() {
   return (
-    <>
-
-      <main>
-        <Box>This is index page</Box>
-      </main>
-    </>
+    <div style={{ height: "100vh", width: "100%" }}>
+      <MapComponent />
+    </div>
   );
 }
-
-export default Home;
