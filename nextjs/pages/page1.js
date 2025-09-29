@@ -1,152 +1,252 @@
 import { useState } from "react";
 import {
   Container,
-  TextField,
-  Button,
   Typography,
-  Stack,
-  Grid
+  Grid,
+  Card,
+  CardContent,
+  Box,
+  Rating,
+  Button,
+  Avatar,
+  Pagination,
+  Chip,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
-import Swal from 'sweetalert2';
+import { LocationOn, Add, Map } from "@mui/icons-material";
 
-export default function Page1() {
-  // State for all form fields
-  const [formData, setFormData] = useState({
-    title: "",
-    author: "",
-    isbn: "",
-    publishedYear: ""
+export default function ReviewsAndMapPage() {
+  // State for reviews and modal
+  const [reviews, setReviews] = useState([
+    {
+      id: 1,
+      name: "John Doe",
+      date: "March 15, 2023",
+      rating: 5,
+      text: "Excellent service and high-quality products. The staff was very helpful and knowledgeable. I will definitely be coming back for future purchases.",
+      avatar: "JD"
+    },
+    {
+      id: 2,
+      name: "Sarah Johnson",
+      date: "February 28, 2023",
+      rating: 4,
+      text: "Good overall experience. The location is convenient and the prices are reasonable. The only downside was the wait time during peak hours.",
+      avatar: "SJ"
+    },
+    {
+      id: 3,
+      name: "Michael Roberts", 
+      date: "January 10, 2023",
+      rating: 4.5,
+      text: "I've been a customer for years and they never disappoint. Consistent quality and friendly service. Highly recommended for anyone looking for reliable products.",
+      avatar: "MR"
+    }
+  ]);
+
+  const [openModal, setOpenModal] = useState(false);
+  const [newReview, setNewReview] = useState({
+    name: "",
+    rating: 0,
+    text: ""
   });
+  const [page, setPage] = useState(1);
 
-  // Handle input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+  // Handle adding new review
+  const handleAddReview = () => {
+    const review = {
+      id: reviews.length + 1,
+      name: newReview.name || "Anonymous",
+      date: new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      rating: newReview.rating,
+      text: newReview.text,
+      avatar: newReview.name ? newReview.name.charAt(0) : "A"
+    };
+    
+    setReviews([review, ...reviews]);
+    setNewReview({ name: "", rating: 0, text: "" });
+    setOpenModal(false);
   };
 
-  // Handle form submission
-  // Replace your existing handleSubmit with this new version
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const response = await fetch('http://localhost:8000/books/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          author: formData.author,
-          isbn: formData.isbn,
-          published_year: parseInt(formData.publishedYear)
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      // Use SweetAlert2 for success messages (much cleaner than Alert components)
-      Swal.fire({
-        title: 'Book Added Successfully!',
-        icon: 'success'
-      });
-      
-      // Clear form after successful submission
-      setFormData({
-        title: "",
-        author: "",
-        isbn: "",
-        publishedYear: ""
-      });
-
-    } catch (err) {
-      console.error('Error submitting form:', err);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to add book.',
-        icon: 'error'
-      });
-    }
+  // Handle page change
+  const handlePageChange = (event, value) => {
+    setPage(value);
   };
 
   return (
-    <Container sx={{ py: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        Library — Add New Book
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom align="center" color="primary">
+        Customer Reviews & Location
       </Typography>
 
-      {/* Form for adding new book */}
-      <form onSubmit={handleSubmit}>
-        <Stack spacing={2}>
-          <Grid container spacing={2}>
-            {/* Book Title */}
-            <Grid item xs={12} md={8}>
-              <TextField
-                label="Book Title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                fullWidth
-                placeholder="e.g., Clean Code"
-              />
-            </Grid>
+      <Grid container spacing={3}>
+        {/* Reviews Section - Left Side */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ mb: 2 }}>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h5" component="h2">
+                  Customer Reviews
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Add />}
+                  onClick={() => setOpenModal(true)}
+                >
+                  Add Review
+                </Button>
+              </Box>
 
-            {/* Author */}
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Author"
-                name="author"
-                value={formData.author}
-                onChange={handleChange}
-                required
-                fullWidth
-                placeholder="e.g., Robert C. Martin"
-              />
-            </Grid>
+              {/* Reviews List */}
+              {reviews.map((review) => (
+                <Card key={review.id} variant="outlined" sx={{ mb: 2, p: 2 }}>
+                  <Box display="flex" alignItems="center" mb={1}>
+                    <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                      {review.avatar}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {review.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {review.date}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Rating value={review.rating} precision={0.5} readOnly sx={{ mb: 1 }} />
+                  
+                  <Typography variant="body2" color="text.secondary">
+                    {review.text}
+                  </Typography>
+                </Card>
+              ))}
 
-            {/* ISBN */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="ISBN"
-                name="isbn"
-                value={formData.isbn}
-                onChange={handleChange}
-                required
-                fullWidth
-                placeholder="e.g., 9780132350884"
-              />
-            </Grid>
+              {/* Pagination */}
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination 
+                  count={3} 
+                  page={page} 
+                  onChange={handlePageChange} 
+                  color="primary" 
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Published Year */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Published Year"
-                name="publishedYear"
-                type="number"
-                value={formData.publishedYear}
-                onChange={handleChange}
-                required
-                fullWidth
-                placeholder="e.g., 2008"
-                inputProps={{ min: 1800, max: new Date().getFullYear() }}
-              />
-            </Grid>
-          </Grid>
+        {/* Map Section - Right Side */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: 0, height: '100%' }}>
+              {/* Map Header */}
+              <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="h5" component="h2" gutterBottom>
+                  <LocationOn sx={{ mr: 1, verticalAlign: 'bottom' }} />
+                  Our Location
+                </Typography>
+                <Chip 
+                  icon={<Map />} 
+                  label="Interactive Map" 
+                  variant="outlined" 
+                  color="primary" 
+                />
+              </Box>
 
-          {/* Submit Button */}
-          <Button type="submit" variant="contained" color="primary">
-            Add Book
+              {/* Map Placeholder */}
+              <Box 
+                sx={{ 
+                  height: 400,
+                  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'primary.main'
+                }}
+              >
+                <Map sx={{ fontSize: 64, mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Interactive Map
+                </Typography>
+                <Typography variant="body2" align="center" sx={{ maxWidth: 300 }}>
+                  In a real implementation, this would display a Google Map or similar service
+                </Typography>
+              </Box>
+
+              {/* Location Info */}
+              <Box sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Business Information
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  123 Main Street, Downtown<br />
+                  City, State 12345<br />
+                  Phone: (555) 123-4567
+                </Typography>
+                <Button variant="outlined" fullWidth>
+                  Get Directions
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Add Review Modal */}
+      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Your Review</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Your Name (Optional)"
+            fullWidth
+            variant="outlined"
+            value={newReview.name}
+            onChange={(e) => setNewReview({...newReview, name: e.target.value})}
+            sx={{ mb: 2 }}
+          />
+          <Box sx={{ mb: 2 }}>
+            <Typography component="legend">Your Rating</Typography>
+            <Rating
+              value={newReview.rating}
+              precision={0.5}
+              onChange={(event, newValue) => {
+                setNewReview({...newReview, rating: newValue});
+              }}
+            />
+          </Box>
+          <TextField
+            margin="dense"
+            label="Your Review"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={4}
+            value={newReview.text}
+            onChange={(e) => setNewReview({...newReview, text: e.target.value})}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+          <Button 
+            onClick={handleAddReview} 
+            variant="contained"
+            disabled={!newReview.text || newReview.rating === 0}
+          >
+            Submit Review
           </Button>
-        </Stack>
-      </form>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -1,5 +1,4 @@
 "use client";
-
 import dynamic from "next/dynamic";
 
 // Import map dynamically so it only loads on client
