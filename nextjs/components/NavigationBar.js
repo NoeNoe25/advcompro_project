@@ -22,7 +22,7 @@ const NavigationLayout = ({ children }) => {
 
   return (
     <>
-      <AppBar position="sticky" sx={{ backgroundColor: "#ff5e15" }}>
+      <AppBar position="sticky" sx={{ backgroundColor: "#fffff" }}>
         <Toolbar>
           <Link href={"/"}>
             <FunctionsIcon sx={{ color: "#ffffff" }} fontSize="large" />

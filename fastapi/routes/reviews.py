@@ -1,90 +1,113 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from typing import Optional
-import uuid
+# routes/reviews.py
+from fastapi import APIRouter, UploadFile, Form, HTTPException
+from database import *
+import shutil
 import os
-import aiofiles
-from database import insert_review, get_all_reviews, get_reviews_by_location, get_review_by_id
+import time
 
-router = APIRouter()
+router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 
-# Create uploads directory if it doesn't exist
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+@router.get("/")
+async def get_reviews(latitude: float = None, longitude: float = None):
+    if latitude and longitude:
+        # Get reviews for a specific location
+        query = """
+        SELECT r.*, u.username as user_name, p.name as place_name, p.address,
+               p.latitude, p.longitude, r.image_path, r.created_at
+        FROM reviews r
+        JOIN users u ON r.user_id = u.user_id
+        JOIN places p ON r.place_id = p.place_id
+        WHERE p.latitude BETWEEN :lat_min AND :lat_max 
+          AND p.longitude BETWEEN :lng_min AND :lng_max
+        ORDER BY r.created_at DESC
+        """
+        # Search within ~1km radius
+        lat_range = 0.009  # ~1km
+        lng_range = 0.009  # ~1km
+        values = {
+            "lat_min": latitude - lat_range,
+            "lat_max": latitude + lat_range,
+            "lng_min": longitude - lng_range,
+            "lng_max": longitude + lng_range
+        }
+    else:
+        # Get all reviews
+        query = """
+        SELECT r.*, u.username as user_name, p.name as place_name, p.address,
+               p.latitude, p.longitude, r.image_path, r.created_at
+        FROM reviews r
+        JOIN users u ON r.user_id = u.user_id
+        JOIN places p ON r.place_id = p.place_id
+        ORDER BY r.created_at DESC
+        """
+        values = {}
+    
+    return await database.fetch_all(query=query, values=values)
 
-ALLOWED_EXT = {"jpg", "jpeg", "png", "webp", "gif"}
-
-
-def _secure_extension(filename: str) -> str:
-    if "." not in filename:
-        return ""
-    return filename.rsplit(".", 1)[-1].lower()
-
-
-@router.post("/reviews")
-async def create_review(
+@router.post("/")
+async def add_review(
     title: str = Form(...),
     comment: str = Form(...),
     rating: int = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
     address: str = Form(...),
-    image: Optional[UploadFile] = File(None),
-    user_id: int = Form(1),
+    user_id: int = Form(...),
+    image: UploadFile = None,
 ):
-    image_path = None
-    if image and image.filename:
-        ext = _secure_extension(image.filename)
-        if ext not in ALLOWED_EXT:
-            raise HTTPException(status_code=400, detail="Unsupported image format")
-        filename = f"{uuid.uuid4()}.{ext}"
-        image_path = os.path.join(UPLOAD_DIR, filename)
-        # async write
-        try:
-            async with aiofiles.open(image_path, "wb") as out_file:
-                content = await image.read()
-                await out_file.write(content)
-        except Exception as e:
-            # if fails, try cleanup
-            if os.path.exists(image_path):
-                os.remove(image_path)
-            raise HTTPException(status_code=500, detail=f"Failed to save image: {str(e)}")
-
     try:
-        review = await insert_review(
-            title=title,
-            comment=comment,
-            rating=rating,
-            latitude=latitude,
-            longitude=longitude,
-            address=address,
-            image_path=image_path,
-            user_id=user_id,
-        )
-        return review
+        # First, find or create a place
+        place = await get_place_by_location(latitude, longitude)
+        if not place:
+            # Create a new place (using category_id=1 as default, you might want to make this dynamic)
+            place = await insert_place(
+                name=title,  # Using title as place name, you might want to separate this
+                category_id=1,
+                address=address,
+                latitude=latitude,
+                longitude=longitude
+            )
+        
+        # Handle image upload
+        image_path = None
+        if image and image.filename:
+            os.makedirs("uploads", exist_ok=True)
+            # Create unique filename to avoid conflicts
+            file_extension = os.path.splitext(image.filename)[1]
+            unique_filename = f"{user_id}_{int(time.time())}{file_extension}"
+            image_path = f"uploads/{unique_filename}"
+            
+            with open(image_path, "wb") as buffer:
+                shutil.copyfileobj(image.file, buffer)
+
+        # Create the review
+        query = """
+        INSERT INTO reviews (user_id, place_id, rating, comment, image_path, created_at)
+        VALUES (:user_id, :place_id, :rating, :comment, :image_path, NOW())
+        RETURNING review_id, user_id, place_id, rating, comment, image_path, created_at
+        """
+        values = {
+            "user_id": user_id,
+            "place_id": place["place_id"],
+            "rating": rating,
+            "comment": comment,
+            "image_path": image_path,
+        }
+        
+        review = await database.fetch_one(query=query, values=values)
+        
+        return {
+            "message": "Review added successfully", 
+            "review_id": review["review_id"],
+            "id": review["review_id"],  # For frontend compatibility
+            "title": title,  # Include title in response
+            "user_name": "User",  # You might want to fetch actual username
+            "address": address,
+            "latitude": latitude,
+            "longitude": longitude,
+            "image_path": image_path,
+            "created_at": review["created_at"]
+        }
+        
     except Exception as e:
-        if image_path and os.path.exists(image_path):
-            os.remove(image_path)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/reviews")
-async def read_reviews(latitude: Optional[float] = None, longitude: Optional[float] = None):
-    try:
-        if latitude is not None and longitude is not None:
-            reviews = await get_reviews_by_location(latitude, longitude)
-        else:
-            reviews = await get_all_reviews()
-        return reviews
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/reviews/{review_id}")
-async def read_review(review_id: int):
-    try:
-        review = await get_review_by_id(review_id)
-        if not review:
-            raise HTTPException(status_code=404, detail="Review not found")
-        return review
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error adding review: {str(e)}")

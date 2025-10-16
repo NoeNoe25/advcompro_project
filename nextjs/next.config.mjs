@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 
-const API_URL = "http://fastapi:8000";
+// For client-side requests (browser), use localhost
+// For server-side requests (Docker internal), use service name
+const isServer = typeof window === 'undefined';
+const API_URL = isServer ? "http://fastapi:8000" : "http://localhost:8000";
 
 const nextConfig = {
   reactStrictMode: true,
-  // output: 'export',
   images: {
     unoptimized: true,
   },
@@ -16,10 +18,13 @@ const nextConfig = {
       },
     ];
   },
-  webpackDevMiddleware: config => {
-    config.watchOptions = {
-      poll: 800,
-      aggregateTimeout: 300,
+  // Remove the webpackDevMiddleware section entirely
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 800,
+        aggregateTimeout: 300,
+      }
     }
     return config
   },
