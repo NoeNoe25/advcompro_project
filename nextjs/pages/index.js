@@ -126,9 +126,7 @@ export default function Page() {
               ))}
             </div>
 
-            <div className="more">
-              <Link className="btn link" href="/explore">Load more</Link>
-            </div>
+            
           </div>
         </section>
       </main>
