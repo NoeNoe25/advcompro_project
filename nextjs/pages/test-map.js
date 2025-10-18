@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Container,
   Typography,
@@ -21,53 +22,90 @@ import {
   CircularProgress,
   IconButton,
 } from "@mui/material";
-import { LocationOn, Add, Map, Star, Close, CloudUpload } from "@mui/icons-material";
+import {
+  LocationOn,
+  Add,
+  Map,
+  Star,
+  Close,
+  CloudUpload,
+} from "@mui/icons-material";
 import dynamic from "next/dynamic";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Dynamically import the map component to avoid SSR issues
 const MapComponent = dynamic(() => import("../components/MapComponent"), {
   ssr: false,
   loading: () => (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         height: 400,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'grey.100'
-      }}
-    >
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "grey.100",
+      }}>
       <CircularProgress />
     </Box>
-  )
+  ),
 });
 
 export default function ReviewsAndMapPage() {
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+
+  // Read location from URL parameters
+  const urlLat = searchParams?.get('lat');
+  const urlLng = searchParams?.get('lng');
+  const urlLabel = searchParams?.get('label');
+
   // Default location (Bangkok, Thailand example)
   const defaultLocation = {
     lat: 13.7563,
     lng: 100.5018,
-    label: "Bangkok, Thailand"
+    label: "Bangkok, Thailand",
   };
+
+  // Initialize selectedPosition with URL params or default
+  const [selectedPosition, setSelectedPosition] = useState(() => {
+    if (urlLat && urlLng) {
+      return {
+        lat: parseFloat(urlLat),
+        lng: parseFloat(urlLng),
+        label: urlLabel || "Selected Location"
+      };
+    }
+    return null;
+  });
 
   // State for reviews and modal
   const [reviews, setReviews] = useState([]);
-  const [allReviews, setAllReviews] = useState([]); 
-  const [filteredReviews, setFilteredReviews] = useState([]); 
-  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [allReviews, setAllReviews] = useState([]);
+  const [filteredReviews, setFilteredReviews] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  
+
   const [newReview, setNewReview] = useState({
     title: "",
     comment: "",
     rating: 1,
     address: "",
   });
+
+  // Update selectedPosition when URL params change
+  useEffect(() => {
+    if (urlLat && urlLng) {
+      setSelectedPosition({
+        lat: parseFloat(urlLat),
+        lng: parseFloat(urlLng),
+        label: urlLabel || "Selected Location"
+      });
+    }
+  }, [urlLat, urlLng, urlLabel]);
 
   // Fetch all reviews on component mount
   useEffect(() => {
@@ -108,22 +146,32 @@ export default function ReviewsAndMapPage() {
       const response = await fetch(
         `http://localhost:8000/api/reviews?latitude=${lat}&longitude=${lng}`
       );
-      
+
       if (response.ok) {
         const locationReviews = await response.json();
         setFilteredReviews(locationReviews);
       } else {
         // fallback: nearby reviews
-        const nearbyReviews = allReviews.filter(review => {
-          const distance = calculateDistance(lat, lng, review.latitude, review.longitude);
+        const nearbyReviews = allReviews.filter((review) => {
+          const distance = calculateDistance(
+            lat,
+            lng,
+            review.latitude,
+            review.longitude
+          );
           return distance < 1;
         });
         setFilteredReviews(nearbyReviews);
       }
     } catch (error) {
       console.error("Error filtering reviews by location:", error);
-      const nearbyReviews = allReviews.filter(review => {
-        const distance = calculateDistance(lat, lng, review.latitude, review.longitude);
+      const nearbyReviews = allReviews.filter((review) => {
+        const distance = calculateDistance(
+          lat,
+          lng,
+          review.latitude,
+          review.longitude
+        );
         return distance < 1;
       });
       setFilteredReviews(nearbyReviews);
@@ -132,7 +180,12 @@ export default function ReviewsAndMapPage() {
 
   // Calculate distance between two coordinates in kilometers
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) {
+    if (
+      lat1 === undefined ||
+      lon1 === undefined ||
+      lat2 === undefined ||
+      lon2 === undefined
+    ) {
       return 0;
     }
     const numLat1 = parseFloat(lat1);
@@ -144,13 +197,15 @@ export default function ReviewsAndMapPage() {
     }
 
     const R = 6371;
-    const dLat = (numLat2 - numLat1) * Math.PI / 180;
-    const dLon = (numLon2 - numLon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(numLat1 * Math.PI / 180) * Math.cos(numLat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const dLat = ((numLat2 - numLat1) * Math.PI) / 180;
+    const dLon = ((numLon2 - numLon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((numLat1 * Math.PI) / 180) *
+        Math.cos((numLat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
@@ -158,13 +213,19 @@ export default function ReviewsAndMapPage() {
   const handleImageSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      const validTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+      ];
       if (!validTypes.includes(file.type)) {
-        alert('Please select a valid image file');
+        alert("Please select a valid image file");
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        alert("Image size should be less than 5MB");
         return;
       }
       setSelectedImage(file);
@@ -194,8 +255,11 @@ export default function ReviewsAndMapPage() {
       submitData.append("rating", String(newReview.rating));
       submitData.append("latitude", String(pos.lat));
       submitData.append("longitude", String(pos.lng));
-      submitData.append("address", newReview.address || pos.label || "Selected Location");
-      submitData.append("user_id", "1");
+      submitData.append(
+        "address",
+        newReview.address || pos.label || "Selected Location"
+      );
+      submitData.append("user_id", String(user.id));
       if (selectedImage) {
         submitData.append("image", selectedImage);
       }
@@ -236,38 +300,50 @@ export default function ReviewsAndMapPage() {
 
   const handleSelectPosition = (position) => {
     setSelectedPosition(position);
-    setNewReview(prev => ({ ...prev, address: position.label || "Selected Location" }));
+    setNewReview((prev) => ({
+      ...prev,
+      address: position.label || "Selected Location",
+    }));
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown date";
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
     } catch {
       return dateString;
     }
   };
 
-  const getAvatarInitial = (userName) => userName ? userName.charAt(0).toUpperCase() : "U";
+  const getAvatarInitial = (userName) =>
+    userName ? userName.charAt(0).toUpperCase() : "U";
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith("http")) return imagePath;
     return `http://localhost:8000/${imagePath}`;
   };
 
   // Pagination
   const reviewsPerPage = 5;
   const startIndex = (page - 1) * reviewsPerPage;
-  const paginatedReviews = filteredReviews.slice(startIndex, startIndex + reviewsPerPage);
+  const paginatedReviews = filteredReviews.slice(
+    startIndex,
+    startIndex + reviewsPerPage
+  );
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom align="center" color="primary">
+      <Typography
+        variant="h4"
+        component="h1"
+        gutterBottom
+        align="center"
+        color="primary">
         Place Reviews & Location
       </Typography>
 
@@ -276,11 +352,18 @@ export default function ReviewsAndMapPage() {
         <Grid item xs={12} md={6}>
           <Card sx={{ mb: 2 }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={3}>
                 <Typography variant="h5" component="h2">
                   Customer Reviews
                 </Typography>
-                <Button variant="contained" startIcon={<Add />} onClick={() => setOpenModal(true)}>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setOpenModal(true)}>
                   Add Review
                 </Button>
               </Box>
@@ -293,13 +376,14 @@ export default function ReviewsAndMapPage() {
 
               {!isLoading && paginatedReviews.length === 0 ? (
                 <Typography variant="body2" align="center" sx={{ py: 4 }}>
-                  No reviews yet for {selectedPosition?.label || defaultLocation.label}.
+                  No reviews yet for{" "}
+                  {selectedPosition?.label || defaultLocation.label}.
                 </Typography>
               ) : (
                 paginatedReviews.map((review) => (
                   <Card key={review.id} variant="outlined" sx={{ mb: 2, p: 2 }}>
                     <Box display="flex" alignItems="center" mb={1}>
-                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                      <Avatar sx={{ mr: 2, bgcolor: "primary.main" }}>
                         {getAvatarInitial(review.user_name || "User")}
                       </Avatar>
                       <Box flex={1}>
@@ -307,24 +391,41 @@ export default function ReviewsAndMapPage() {
                           {review.title}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {review.user_name || "User"} • {formatDate(review.created_at)}
+                          {review.user_name || "User"} •{" "}
+                          {formatDate(review.created_at)}
                         </Typography>
                       </Box>
                     </Box>
-                    <Rating value={review.rating} precision={0.5} readOnly sx={{ mb: 1 }} />
-                    <Typography variant="body2" paragraph>{review.comment}</Typography>
+                    <Rating
+                      value={review.rating}
+                      precision={0.5}
+                      readOnly
+                      sx={{ mb: 1 }}
+                    />
+                    <Typography variant="body2" paragraph>
+                      {review.comment}
+                    </Typography>
                     {review.image_path && (
                       <Box sx={{ mb: 2 }}>
-                        <img 
-                          src={getImageUrl(review.image_path)} 
-                          alt="Review" 
-                          style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8 }}
-                          onError={(e) => e.target.style.display = 'none'}
+                        <img
+                          src={getImageUrl(review.image_path)}
+                          alt="Review"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: 200,
+                            borderRadius: 8,
+                          }}
+                          onError={(e) => (e.target.style.display = "none")}
                         />
                       </Box>
                     )}
                     {review.address && (
-                      <Chip icon={<LocationOn />} label={review.address} size="small" variant="outlined" />
+                      <Chip
+                        icon={<LocationOn />}
+                        label={review.address}
+                        size="small"
+                        variant="outlined"
+                      />
                     )}
                   </Card>
                 ))
@@ -332,11 +433,11 @@ export default function ReviewsAndMapPage() {
 
               {filteredReviews.length > reviewsPerPage && (
                 <Box display="flex" justifyContent="center" mt={3}>
-                  <Pagination 
-                    count={Math.ceil(filteredReviews.length / reviewsPerPage)} 
-                    page={page} 
-                    onChange={handlePageChange} 
-                    color="primary" 
+                  <Pagination
+                    count={Math.ceil(filteredReviews.length / reviewsPerPage)}
+                    page={page}
+                    onChange={handlePageChange}
+                    color="primary"
                   />
                 </Box>
               )}
@@ -346,21 +447,24 @@ export default function ReviewsAndMapPage() {
 
         {/* Map Section */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 0, height: '100%' }}>
-              <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Card sx={{ height: "100%" }}>
+            <CardContent sx={{ p: 0, height: "100%" }}>
+              <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
                 <Typography variant="h5">
-                  <LocationOn sx={{ mr: 1, verticalAlign: 'bottom' }} />
+                  <LocationOn sx={{ mr: 1, verticalAlign: "bottom" }} />
                   Interactive Map
                 </Typography>
-                <Chip 
-                  icon={<Map />} 
-                  label={selectedPosition ? "Location Selected" : "Default Location"} 
+                <Chip
+                  icon={<Map />}
+                  label={
+                    selectedPosition ? "Location Selected" : "Default Location"
+                  }
                   variant={selectedPosition ? "filled" : "outlined"}
                   color={selectedPosition ? "success" : "primary"}
                 />
                 <Typography variant="body2" sx={{ mt: 1 }}>
-                  Showing {filteredReviews.length} review(s) for {selectedPosition?.label || defaultLocation.label}
+                  Showing {filteredReviews.length} review(s) for{" "}
+                  {selectedPosition?.label || defaultLocation.label}
                 </Typography>
               </Box>
 
@@ -377,9 +481,14 @@ export default function ReviewsAndMapPage() {
                   {selectedPosition ? "Selected Location" : "Default Location"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {selectedPosition?.label || defaultLocation.label}<br />
-                  Latitude: {(selectedPosition?.lat || defaultLocation.lat).toFixed(6)}<br />
-                  Longitude: {(selectedPosition?.lng || defaultLocation.lng).toFixed(6)}<br />
+                  {selectedPosition?.label || defaultLocation.label}
+                  <br />
+                  Latitude:{" "}
+                  {(selectedPosition?.lat || defaultLocation.lat).toFixed(6)}
+                  <br />
+                  Longitude:{" "}
+                  {(selectedPosition?.lng || defaultLocation.lng).toFixed(6)}
+                  <br />
                   Reviews: {filteredReviews.length}
                 </Typography>
               </Box>
@@ -389,10 +498,14 @@ export default function ReviewsAndMapPage() {
       </Grid>
 
       {/* Add Review Modal */}
-      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openModal}
+        onClose={handleCloseModal}
+        maxWidth="sm"
+        fullWidth>
         <DialogTitle>
           <Box display="flex" alignItems="center">
-            <Star sx={{ mr: 1, color: 'gold' }} />
+            <Star sx={{ mr: 1, color: "gold" }} />
             Add Your Review
           </Box>
         </DialogTitle>
@@ -403,7 +516,9 @@ export default function ReviewsAndMapPage() {
             label="Review Title"
             fullWidth
             value={newReview.title}
-            onChange={(e) => setNewReview({...newReview, title: e.target.value})}
+            onChange={(e) =>
+              setNewReview({ ...newReview, title: e.target.value })
+            }
             sx={{ mb: 2 }}
           />
           <Box sx={{ mb: 2 }}>
@@ -411,7 +526,7 @@ export default function ReviewsAndMapPage() {
             <Rating
               value={newReview.rating}
               precision={1}
-              onChange={(e, val) => setNewReview({...newReview, rating: val})}
+              onChange={(e, val) => setNewReview({ ...newReview, rating: val })}
             />
           </Box>
           <TextField
@@ -419,7 +534,9 @@ export default function ReviewsAndMapPage() {
             label="Location Address"
             fullWidth
             value={newReview.address}
-            onChange={(e) => setNewReview({...newReview, address: e.target.value})}
+            onChange={(e) =>
+              setNewReview({ ...newReview, address: e.target.value })
+            }
             helperText="Auto-filled from map"
             sx={{ mb: 2 }}
           />
@@ -429,30 +546,43 @@ export default function ReviewsAndMapPage() {
             </Typography>
             <input
               accept="image/*"
-              style={{ display: 'none' }}
+              style={{ display: "none" }}
               id="review-image-upload"
               type="file"
               onChange={handleImageSelect}
             />
             <label htmlFor="review-image-upload">
-              <Button variant="outlined" component="span" startIcon={<CloudUpload />} fullWidth>
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<CloudUpload />}
+                fullWidth>
                 Upload Photo
               </Button>
             </label>
             {selectedImage && (
-              <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+              <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
                 Selected: {selectedImage.name}
               </Typography>
             )}
           </Box>
           {imagePreview && (
-            <Box sx={{ mb: 2, position: 'relative', display: 'inline-block' }}>
-              <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8 }} />
+            <Box sx={{ mb: 2, position: "relative", display: "inline-block" }}>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 8 }}
+              />
               <IconButton
                 size="small"
                 onClick={handleRemoveImage}
-                sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}
-              >
+                sx={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  bgcolor: "rgba(0,0,0,0.5)",
+                  color: "white",
+                }}>
                 <Close />
               </IconButton>
             </Box>
@@ -464,17 +594,25 @@ export default function ReviewsAndMapPage() {
             multiline
             rows={4}
             value={newReview.comment}
-            onChange={(e) => setNewReview({...newReview, comment: e.target.value})}
+            onChange={(e) =>
+              setNewReview({ ...newReview, comment: e.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseModal} disabled={isSubmitting}>Cancel</Button>
-          <Button 
-            onClick={handleAddReview} 
+          <Button onClick={handleCloseModal} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddReview}
             variant="contained"
-            disabled={!newReview.title || !newReview.comment || newReview.rating === 0 || isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
-          >
+            disabled={
+              !newReview.title ||
+              !newReview.comment ||
+              newReview.rating === 0 ||
+              isSubmitting
+            }
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : null}>
             {isSubmitting ? "Submitting..." : "Submit Review"}
           </Button>
         </DialogActions>

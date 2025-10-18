@@ -6,6 +6,7 @@ from database import connect_db, disconnect_db
 
 # Import your router correctly
 from routes.reviews import router as reviews_router
+from routes.users import router as users_router
 
 app = FastAPI(title="Review API")
 
@@ -16,10 +17,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers - THIS IS CRITICAL
 app.include_router(reviews_router)
+app.include_router(users_router)
 
 # Serve static files
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -1,11 +1,13 @@
-import NavigationLayout from "./NavigationBar";
+
+import NavigationBar from "./NavigationBar";
 
 export default function Layout({ children }) {
     return (
       <>
         <div />
-            <NavigationLayout/>
+            <NavigationBar />
             <main>{children}</main>
+           
         <div />
       </>
     )

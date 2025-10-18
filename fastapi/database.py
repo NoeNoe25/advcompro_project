@@ -1,6 +1,7 @@
 # database.py
 from databases import Database
 from typing import Optional, Any
+import asyncio
 
 POSTGRES_USER = "temp"
 POSTGRES_PASSWORD = "temp"
@@ -11,15 +12,28 @@ POSTGRES_PORT = 5432
 DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 database = Database(DATABASE_URL)
 
-
-async def connect_db() -> None:
-    await database.connect()
-    print("Database connected")
+async def connect_db():
+    max_retries = 10
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            await database.connect()
+            print(f"✓ Database connected successfully!")
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠ Database connection attempt {attempt + 1}/{max_retries} failed. Retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+            else:
+                print(f"✗ Failed to connect to database after {max_retries} attempts")
+                raise e
 
 
 async def disconnect_db() -> None:
     await database.disconnect()
     print("Database disconnected")
+
 
 # ---------------- USERS ---------------- #
 
@@ -31,9 +45,13 @@ async def insert_user(username: str, password_hash: str, email: str) -> Any:
     """
     return await database.fetch_one(query=query, values={"username": username, "password_hash": password_hash, "email": email})
 
-async def get_user(username: str) -> Optional[Any]:
-    query = "SELECT * FROM users WHERE username = :username"
-    return await database.fetch_one(query=query, values={"username": username})
+# async def get_user(username: str) -> Optional[Any]:
+#     query = "SELECT * FROM users WHERE username = :username"
+#     return await database.fetch_one(query=query, values={"username": username})
+
+async def get_user(user_id: int) -> Optional[Any]:
+    query = "SELECT * FROM users WHERE user_id = :user_id"
+    return await database.fetch_one(query=query, values={"user_id": user_id})
 
 async def get_user_by_email(email: str) -> Optional[Any]:
     query = "SELECT * FROM users WHERE email = :email"

@@ -3,3 +3,6 @@ uvicorn
 databases[asyncpg]
 pydantic
 aiofiles
+pyjwt
+bcrypt
+python-multipart

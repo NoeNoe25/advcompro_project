@@ -1,5 +1,5 @@
 import "@/styles/globals.css";
-import "leaflet/dist/leaflet.css"; 
+import "leaflet/dist/leaflet.css";
 import React from "react";
 import { useRouter } from "next/router";
 import { AppCacheProvider } from "@mui/material-nextjs/v13-pagesRouter";
@@ -8,7 +8,9 @@ import { Roboto } from "next/font/google";
 import Layout from "@/components/layout";
 import useBearStore from "@/store/useBearStore";
 import Head from "next/head";
-import { Backdrop, CircularProgress } from "@mui/material";
+import ProtectedRoute from "@/utils/protectedRoute";
+import PublicRoute from "@/utils/publicRoute";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const roboto = Roboto({
   weight: ["300", "400", "500", "700"],
@@ -29,11 +31,13 @@ export default function App({ Component, pageProps, props }) {
   const setAppName = useBearStore((state) => state.setAppName);
   const pageName = router.pathname;
 
+  const publicRoutes = ["/register", "/login"];
+  const isPublicRoute = publicRoutes.includes(pageName);
+
   React.useEffect(() => {
     console.log("App load", pageName, router.query);
     setLoading(true);
-    // TODO: This section is use to handle page change.
-    setAppName("Say Hi")
+    setAppName("Say Hi");
     setLoading(false);
   }, [router, pageName]);
 
@@ -48,9 +52,19 @@ export default function App({ Component, pageProps, props }) {
 
       <AppCacheProvider {...props}>
         <ThemeProvider theme={theme}>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
+          <AuthProvider>
+            {isPublicRoute ? (
+              <PublicRoute>
+                <Component {...pageProps} />
+              </PublicRoute>
+            ) : (
+              <Layout>
+                <ProtectedRoute>
+                  <Component {...pageProps} />
+                </ProtectedRoute>
+              </Layout>
+            )}
+          </AuthProvider>
         </ThemeProvider>
       </AppCacheProvider>
     </React.Fragment>

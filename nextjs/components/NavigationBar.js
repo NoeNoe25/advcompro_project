@@ -1,75 +1,179 @@
-import * as React from "react";
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  Menu,
-  MenuItem,
-  Box,
-  ListItemIcon,
-} from "@mui/material";
-import { useRouter } from "next/router";
-import Link from "next/link";
-import FunctionsIcon from "@mui/icons-material/Functions";
-import Divider from "@mui/material/Divider";
-import PersonIcon from "@mui/icons-material/Person";
-import useBearStore from "@/store/useBearStore";
+// components/NavigationBar.js
+"use client";
 
-const NavigationLayout = ({ children }) => {
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { Button } from "@mui/material";
+import FunctionsIcon from "@mui/icons-material/Functions";
+import PersonIcon from "@mui/icons-material/Person";
+import { useAuth } from "@/contexts/AuthContext";
+
+const NavigationBar = ({ children }) => {
   const router = useRouter();
-  const appName = useBearStore((state) => state.appName);
+  const { isAuthenticated, logout } = useAuth();
 
   return (
     <>
-      <AppBar position="sticky" sx={{ backgroundColor: "#fffff" }}>
-        <Toolbar>
-          <Link href={"/"}>
-            <FunctionsIcon sx={{ color: "#ffffff" }} fontSize="large" />
-          </Link>
-          <Typography
-            variant="body1"
-            sx={{
-              fontSize: "22px",
-              fontWeight: 500,
-              color: "#ffffff",
-              padding: "0 10px",
-              fontFamily: "Prompt",
-            }}>
-            {appName}
-          </Typography>
-          <NavigationLink href="/page1" label="Page1" />
-          <div style={{ flexGrow: 1 }} />
-          <Button
-            color="#ffffff"
-            onClick={() => {
-              router.push("/page2");
-            }}>
-            <PersonIcon />
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <header className="navbar">
+        <div className="nav-inner">
+          {/* Logo */}
+          <div className="logo">
+            <Link href="/" className="logo-link">
+              <FunctionsIcon sx={{ color: "#D3AF37", marginRight: "6px" }} />
+              <span>Lan Pya</span>
+            </Link>
+          </div>
+
+          {/* Nav links */}
+          <nav className="nav-links">
+            <Link
+              href="/"
+              className={router.pathname === "/" ? "active" : ""}
+            >
+              Home
+            </Link>
+            {isAuthenticated && (
+              <Link
+                href="/test-map"
+                className={router.pathname === "/test-map" ? "active" : ""}
+              >
+                Reviews
+              </Link>
+            )}
+          </nav>
+
+          {/* Right Actions */}
+          <div className="nav-actions">
+            {isAuthenticated ? (
+              <>
+                <Button
+                  onClick={() => router.push("/profile")}
+                  sx={{ color: "#F5F5F5", minWidth: "auto" }}
+                >
+                  <PersonIcon />
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={logout}
+                  sx={{
+                    color: "#D3AF37",
+                    borderColor: "#D3AF37",
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "rgba(211,175,55,0.1)" },
+                  }}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  href="/login"
+                  sx={{
+                    textTransform: "none",
+                    backgroundColor: "#D3AF37",
+                    color: "#2E2926",
+                    borderRadius: "25px",
+                    px: 3,
+                    py: 1,
+                    fontWeight: 500,
+                    "&:hover": {
+                      backgroundColor: "#c19b2e",
+                    },
+                  }}
+                >
+                  Login
+                </Button>
+                <Button
+                  href="/register"
+                  sx={{
+                    textTransform: "none",
+                    backgroundColor: "#B67B79",
+                    color: "#fff",
+                    borderRadius: "25px",
+                    px: 3,
+                    py: 1,
+                    fontWeight: 500,
+                    "&:hover": {
+                      backgroundColor: "#a36b69",
+                    },
+                  }}
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
       <main>{children}</main>
+
+      <style jsx>{`
+        .navbar {
+          width: 100%;
+          background-color: #2E2926;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+        }
+
+        .nav-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 10px 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .logo-link {
+          display: flex;
+          align-items: center;
+          text-decoration: none;
+          color: #f0e6d2;
+          font-weight: 600;
+          font-size: 18px;
+        }
+
+        .nav-links {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .nav-links a {
+          color: #f5f5f5;
+          text-decoration: none;
+          font-size: 15px;
+          transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+          color: #d3af37;
+        }
+
+        .nav-links a.active {
+          color: #d3af37;
+          font-weight: 600;
+        }
+
+        .nav-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+          .nav-links {
+            display: none;
+          }
+        }
+      `}</style>
     </>
   );
 };
 
-const NavigationLink = ({ href, label }) => {
-  return (
-    <Link href={href} style={{ textDecoration: "none" }}>
-      <Typography
-        variant="body1"
-        sx={{
-          fontSize: "14px",
-          fontWeight: 500,
-          // textTransform: "uppercase",
-          color: "#fff",
-          padding: "0 10px", // Add padding on left and right
-        }}>
-        {label}
-      </Typography>{" "}
-    </Link>
-  );
-};
-
-export default NavigationLayout;
+export default NavigationBar;
