@@ -1,50 +1,33 @@
-# main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import connect_db, disconnect_db
+from init_db import init_db  # add this line
 
-# Import your router correctly
 from routes.reviews import router as reviews_router
 from routes.users import router as users_router
 
 app = FastAPI(title="Review API")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://nextjs:3000"],  # Add both
+    allow_origins=["http://localhost:3000", "http://nextjs:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# Include routers - THIS IS CRITICAL
 app.include_router(reviews_router)
 app.include_router(users_router)
-
-# Serve static files
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.on_event("startup")
 async def startup():
     await connect_db()
-    print("✅ FastAPI server started with reviews routes")
+    await init_db()  # 🔥 auto create tables on startup
+    print("✅ FastAPI server started and DB initialized")
 
 @app.on_event("shutdown")
 async def shutdown():
     await disconnect_db()
-
-@app.get("/")
-async def root():
-    return {"message": "Review API is running"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-
-# Test if reviews endpoint exists
-@app.get("/test-reviews")
-async def test_reviews():
-    return {"message": "Reviews endpoint test"}

@@ -126,7 +126,7 @@ export default function AuthPage() {
       setSnackbarSeverity("success");
       setOpenSnackbar(true);
       setTimeout(() => {
-        router.push("/test");
+        router.push("/");
       }, 1500);
     } catch (error) {
       setSnackbarMessage(error.message);
